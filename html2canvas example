@@ -1,0 +1,90 @@
+-HTML
+<section id="chart_box">
+    <div class="chart">
+     ...//차트에 해당하는 요소들
+    </div>
+</section>
+ 
+
+ 
+
+-JS
+$("#btn").on("click", function() {
+	sreenShot($("#chart_box"));
+});
+
+function sreenShot(target) {
+	if (target != null && target.length > 0) {
+		var t = target[0];
+		html2canvas(t).then(function(canvas) {
+			var myImg = canvas.toDataURL("image/png");
+			myImg = myImg.replace("data:image/png;base64,", "");
+
+			$.ajax({
+				type : "POST",
+				data : {
+					"imgSrc" : myImg
+				},
+				dataType : "text",
+				url : contextPath + "/public/ImgSaveTest.do",
+				success : function(data) {
+					console.log(data);
+				},
+				error : function(a, b, c) {
+					alert("error");
+				}
+			});
+		});
+	}
+}
+넣고 싶은 요소 $("#chart_box")를 매개변수로 집어넣고 0번째 데이터를 html2canvas 첫번째 파라미터에 처리합니다.
+
+html2canvas는 Promise를 사용하는것으로 보이는데, 요소 처리가 완료되면 다음 이행동작을 정의합니다.
+
+ 
+
+매개변수로 나온 canvas의 toDataURL을 통해 이미지 바이너리 데이터를 받을 수 있습니다.
+
+거기서 앞에 붙는 데이터타입과 인코딩타입을 제거하고 서버로 전송하면 js부분은 끝입니다.
+
+전송은 ajax를 통해 처리하였습니다.
+
+ 
+
+ 
+
+-Server(java)
+@ResponseBody
+@RequestMapping(value = { "ImgSaveTest" }, method = RequestMethod.POST)
+public ModelMap ImgSaveTest(@RequestParam HashMap<Object, Object> param, final HttpServletRequest request, final HttpServletResponse response) throws Exception {
+	ModelMap map = new ModelMap();
+	
+	String binaryData = request.getParameter("imgSrc");
+	FileOutputStream stream = null;
+	try{
+		System.out.println("binary file   "  + binaryData);
+		if(binaryData == null || binaryData.trim().equals("")) {
+		    throw new Exception();
+		}
+		binaryData = binaryData.replaceAll("data:image/png;base64,", "");
+		byte[] file = Base64.decodeBase64(binaryData);
+		String fileName=  UUID.randomUUID().toString();
+		
+		stream = new FileOutputStream("E:/test2/"+fileName+".png");
+		stream.write(file);
+		stream.close();
+		System.out.println("캡처 저장");
+	    
+	}catch(Exception e){
+		e.printStackTrace();
+		System.out.println("에러 발생");
+	}finally{
+		if(stream != null) {
+			stream.close();
+		}
+	}
+	
+	map.addAttribute("resultMap", "");
+	return map;
+}
+파라미터로 넘긴 데이터를 문자열로 전달받고 바이너리 데이터를 스트림을 통해 읽어서 파일쓰기를 통해 파일을 남깁니다.
